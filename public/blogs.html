@@ -1,0 +1,46 @@
+<html>
+<meta charset="UTF-8">
+<head>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+	<script src="/public/blogs.js"></script>
+	<link rel="stylesheet" href="/public/blogs.css"/>
+</head>
+<body> 
+	<header>
+    	<h1>My Blogs</h1>
+	</header>
+	<section>
+		
+		<div id="registerarea">
+		  <div id="loginarea">
+		  <fieldSet>
+		  <label for="username">Escribe tu nombre de usuario:</label>
+		  <input type="text" placeholder="username.." id="username" name="username"/>
+		    <button onclick="register()" class="btn">Entra</button>
+		  <fieldSet>
+		  </div>
+		  <div id="loginfo"></div>
+		</div>
+	
+		<div id="blogarea">
+			<fieldSet>
+			<label for="blogtitle">Nuevo blog:</label>
+			<input type="text" placeholder="new blog.." id="blogtitle" name="blogtitle"/>
+			    <button id="newblog" onclick="newBlog()" class="btn">Crea</button>
+			</fieldSet>
+			<fieldSet>
+			<label for="activeblog">Selecciona un blog:</label>
+			<select id="activeblog" onchange="showBlog()">
+			    <option id="0" value="none">--no seleccionado--</option>
+			</select>
+
+			</fieldSet>
+			<fieldSet>
+			    <label for="newpost">Nuevo comentario:</label>
+			    <input type="text" name="newpost" id="newpost"/>
+			    <button id="addPost" onclick="addPost()">Añade</button>
+			</fieldSet>
+		</div>
+		<div id="postsarea"/>
+	</section>
+</body>

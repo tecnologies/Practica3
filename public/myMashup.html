@@ -1,0 +1,413 @@
+<html>
+<meta charset="UTF-8">
+<head>
+
+<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+
+<script src="/jsonldGen.js"></script>
+
+<style>
+span{
+    color:black;
+    margin:5px;
+    background-color:white;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+#labelarea{
+    margin:20px;
+}
+
+.object{
+    margin:5px;
+}
+
+body{
+	margin: 0px; 
+	text-align: center;
+}
+
+h1{
+	width:80%;
+	text-align: center;
+}
+
+button {
+    border: 1px solid black;
+    background-color: lightgray;
+    color: black;
+    border-radius: 0.5em;
+    padding: 4px;
+    margin: 3px;
+    width: 100px;
+}
+
+
+button#new{
+	width: 50px;
+	background-color: white;
+}
+
+table{
+	width:80%;
+	margin-left: 30px;
+}
+
+div#streamlist{
+    width:910px;
+    height:60px;
+    background-color:purple;
+}
+
+div#form-container{
+	visibility:hidden;
+	width:500px;
+	height:50px;
+}
+
+canvas#wordcloud{
+    width:300px;
+    height:300px;
+    background-color:lightgrey;
+}
+
+canvas#polarity{
+    width:300px;
+    height:300px;
+    background-color:lightgrey;
+}
+	
+div#mapcanvas{
+    width:300px;
+    height:300px;
+    background-color:lightgrey;
+}
+	
+div#fotos{
+	width:910px;
+    height:150px;
+    text-align:center;
+    background-color:purple;
+	
+}
+</style>
+
+<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script src="http://timdream.org/wordcloud2.js/src/wordcloud2.js"></script>
+<script src="http://maps.googleapis.com/maps/api/js?key=AIzaSyD6hLLddlXLuJE52eCmsFbA8OGZ0eh_UO4&sensor=false"></script>
+
+<script>
+	$(document).ready(function(){
+
+		//initial list of buttons (streams)
+	   //var lbuttons=["felicidad","euforia"];
+	      
+	   //button for cretaing new streams
+	   $("#streamlist").append("<button id='NEW' width='1%'><b>+</b></button>");
+	   
+	   $.getJSON( "http://localhost:8000/stream", {
+		
+		}).done(function(data){
+				var json = JSON.stringify(data);
+				
+				$.each(data.result, function(name, count) {
+					addButton(name,count);	
+					
+				});
+		});
+		
+	$.ajax({
+	     url: "http://localhost:28017/twitter/jsonld/",
+            type: "POST",
+            dataType: 'jsonp',
+      		jsonp: 'jsonp',
+            crossDomain: true,
+            success: function (response) {
+        		var json = JSON.stringify(response.rows);
+        		var jsonls = {"@context":"http://schema.org","@graph":json}
+        		$("#ldjson").text(JSON.stringify(jsonls));
+            }
+        });
+
+	   
+	   //event for button "NEW"
+	   $("#NEW").click(function(){
+			//make visible the form
+			$("#form-container").css({"width":"500px","height":"50px","visibility":"visible"});
+			newdata=$("#name").val("");
+	   });
+	   
+	   //event for form button
+	   $("#create").click(function(){
+			//hide the form
+			$("#form-container").css({"visibility":"hidden"});
+			newdata=$("#name").val();
+			//create new button for new stream
+			addPost(newdata);
+	   });
+	   
+	   $(".tweet").click(function(){
+	   		actionTweet(this);
+		});
+	   
+	   $(".stream").click(function(){
+			actionButton(this);
+		});
+	});
+
+	function updateButtons(name){
+		$.getJSON( "http://localhost:8000/stream", {
+		
+		}).done(function(data){
+				var json = JSON.stringify(data);
+				
+				$.each(data.result, function(name2, count) {
+					if (name==name2){
+						addButton(name,count);	
+					}
+				});
+		});
+
+	}
+	
+	function addButton(data, cnt){
+		if (data.length>0){
+				newbutton="<button class='stream' id="+data+">"+data+"<br>"+cnt+"</button>";
+				$(newbutton).insertBefore($("#NEW")).click(function(){actionButton(this);});
+			};
+	};
+	 
+	function addTweet(data){
+		newbutton="<button class='tweet' id='tweet' data=" + data + ">"+data+"</button>";
+				$(newbutton).insertBefore($("#texto")).click(function(){
+					actionTweet(this);
+				});
+	};
+	
+	function actionTweet(data){
+		window.alert(data.getAttribute("data"));
+	};
+	
+	function actionButton(data){
+		streamname=data.getAttribute("id");
+		var url = "http://localhost:8000/stream/"+streamname+"/words";
+		$.getJSON(url, {
+		}).done(function(data){
+			//console.log(data.result);
+			palabras = data.result;
+		});
+	    
+		//update_cloud(palabras);
+		
+		//Actualiza la polaridad
+		var polaridad = "http://localhost:8000/stream/"+streamname+"/polarity";
+		$.getJSON(polaridad, {
+		}).done(function(data){
+			polarity = {"positive":data.positiva,"negative":data.negativa};
+		});
+		update_polar(polarity);
+		
+		//actualiza los tweets
+		update_tweets(streamname);
+		
+		//Actualiza el mapa
+		var mapa = "http://localhost:8000/stream/"+streamname+"/geo";
+		$.getJSON(mapa, {
+		}).done(function(data){
+			var json=JSON.stringify(data.result);
+			update_map(json);
+
+		});	
+		
+		//Actualiza las imagenes
+		//update_pictures(palabras);
+
+	};
+
+	
+	function addPost(name){
+    if (name!="none"){
+            dataString={name:name,query:name};
+            $.ajax({
+            	type: "POST",
+                contentType:'application/json',
+                url: "/stream/",
+                data: JSON.stringify(dataString),
+                success: function(data){
+                	setTimeout(function() {
+    					updateButtons(name);
+					},  2000);
+                	  
+                }                
+            })
+        }
+    }
+    
+    
+	function update_polar(data){
+		var canvas=document.getElementById("polarity");
+	    var contexto=canvas.getContext("2d");
+		
+		//limpia canvas
+		contexto.clearRect(0, 0, canvas.width, canvas.height);
+		
+		contexto.font = "20px Arial";
+		contexto.fillStyle="black";
+		contexto.fillText("Polaridad",10,20);
+
+	    contexto.fillStyle="green";
+	    contexto.lineWidth=2;
+	    contexto.beginPath();
+	    contexto.arc(150,50,50.0*data["positive"],0,2*Math.PI,true);
+	    contexto.fill();
+		
+	    contexto.fillStyle="red";
+	    contexto.lineWidth=2;
+	    contexto.beginPath();
+	    contexto.arc(150,100,50.*data["negative"],0,2*Math.PI,true);
+	    contexto.fill();
+	};
+
+	function update_tweets(name){
+		$("#tweets").empty();
+		$("#tweets").append("<p id='texto'><font size='5'>Ultimos Tweets:</font></p>");
+		var url = "http://localhost:8000/stream/"+name;
+		$.getJSON(url, {
+		}).done(function(data){
+			console.log(data);
+			for (var i=0; i<5; i++){
+				addTweet(data.result[i]);
+			}
+		});
+	}
+	
+	function update_map(data){
+		var mapProp = {
+			center:new google.maps.LatLng(40.0,-0.624207),
+			zoom:7,
+			mapTypeId:google.maps.MapTypeId.ROADMAP
+	  };
+		var map=new google.maps.Map(document.getElementById("mapcanvas"),mapProp);
+		
+		$.each(data,function(key,pos){
+			mark=new google.maps.LatLng(pos[0],pos[1]);
+			var marker=new google.maps.Marker({position:mark, title:key});
+			marker.setMap(map);
+		});
+		
+		google.maps.event.addDomListener(window, 'load', update_map);
+		
+	};
+
+	function update_pictures(labels){
+		$("#fotos").empty();
+		var flickerAPI = "http://api.flickr.com/services/feeds/photos_public.gne?jsoncallback=?";
+		for(var i = 0;i<3;i++){
+
+			$.getJSON( flickerAPI, {
+				tags:labels[i][0],
+				tagmode: "any",
+				format: "json",
+			}).done(function(data){
+				$.each( data.items, function( i, item ) {
+					$( "<img>" ).attr( "src", item.media.m ).attr("height","145").appendTo( "#fotos" );
+					if ( i === 0 ) {return false;}
+				});
+				
+			})
+		}
+		
+	}
+
+
+	function update_cloud(data){
+	  options= { list : data}; 
+	  WordCloud(document.getElementById('wordcloud'), options);
+	};
+
+</script>
+
+<script type="ld+json" id ="ldjson"></script>
+
+<script>
+function cabeceras(){
+	console.log("cabeceras");
+	$.ajax({
+        type: "GET",
+        url: "/stream/graph/",
+        success: function(data){
+               alert(data);                   
+        },
+        contentType:'application/json' 
+        
+    });
+
+}
+</script>
+
+
+<body onload="addFields()">
+
+<h1>My Mash-up</h1>
+<!--Hidden form for creating new buttons -->
+
+<!--<div id="form-container">
+	<label for="name" width="20%">Nuevo stream:</label>
+	<input id="name" width="70%" type="text" placeholder="..nombre de stream"/>
+	<button id="create" width="10%">Create</button>
+</div>-->
+
+
+
+
+<table cols="4">
+<tr>
+	<td colspan="4"> 
+		<div id="streamlist"></div>
+	</td>
+</tr>
+ <tr>
+     <td>
+         <canvas id="wordcloud"></canvas> </td>
+    <td>
+		 <canvas id="polarity"></canvas>
+
+    </td>
+     <td>
+         <div id="tweets"></div> </td>
+    <td>
+	<td>
+		<div id="mapcanvas"></div>
+ </tr>
+ <tr>
+	<td colspan="4">
+		<div id="fotos"></div>
+	</td>
+</tr>
+</table>
+
+
+
+<button id="cabeceras" onclick="cabeceras()">Generate Graph</button><br>
+
+
+<div id="form-container" style="padding:3%">
+	<div class="container"><br>
+		<input id="query" placeholder="..tu consulta aquí">
+		    <button onclick="getBabelNetData()">Go</button>
+		<div id="labelarea">
+		</div>
+		<div id="fieldsarea">
+		</div>
+		<button id="create2" onclick="getObject()">Generate JSON-LD</button><br>
+		<textarea id="jsonld" cols="50" rows="10" placeholder="..put here a JSON-LD example to extract fields..">
+		</textarea>
+	</div>
+</div>
+
+
+
+</body>
+</html>
